@@ -1,0 +1,27 @@
+{
+  "best_val_accuracy": 0.6666666666666666,
+  "test_accuracy": 1.0,
+  "num_epochs": 3,
+  "batch_size": 4,
+  "learning_rate": 2e-05,
+  "train_samples": 16,
+  "val_samples": 3,
+  "test_samples": 4,
+  "training_history": {
+    "train_loss": [
+      1.1987639665603638,
+      0.8320465534925461,
+      0.6253989636898041
+    ],
+    "train_acc": [
+      0.375,
+      0.6875,
+      0.875
+    ],
+    "val_acc": [
+      0.3333333333333333,
+      0.6666666666666666,
+      0.6666666666666666
+    ]
+  }
+}

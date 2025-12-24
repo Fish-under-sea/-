@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电影评论情感分析系统</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* 视频背景容器 */
+        .video-background {
+            z-index: -1;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; 
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            animation: fadeInVideo 2s ease-in-out;
+            position: fixed;
+        }
+        
+        
+        .video-background video {
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+            animation: fadeInVideo 2s ease-in-out;
+        }
+        
+        @keyframes fadeInVideo {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* 添加半透明遮罩层 */
+        .video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: -1;
+        }
+        
+        /* 毛玻璃面板切换按钮 */
+        .glass-panel-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .glass-panel-toggle:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.1);
+        }
+        
+        .glass-panel-toggle i {
+            font-size: 16px;
+            color: #667eea;
+            transition: transform 0.3s ease;
+        }
+        
+        .glass-panel-toggle.collapsed i {
+            transform: rotate(-90deg);
+        }
+        
+        /* 毛玻璃效果控制面板 */
+        .glass-control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            width: 200px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        /* 控制面板折叠状态 */
+        .glass-control-panel.collapsed {
+            transform: translateX(calc(100% + 10px));
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .glass-control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .glass-control-header h4 {
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 45px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: #667eea;
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(21px);
+        }
+        
+        .glass-control-content {
+            display: none;
+        }
+        
+        .glass-control-content.active {
+            display: block;
+            animation: fadeInUp 0.3s ease;
+        }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .transparency-control {
+            margin-bottom: 15px;
+        }
+        
+        .transparency-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+        
+        .transparency-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .transparency-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, rgba(102, 126, 234, 0.1), #667eea);
+            outline: none;
+            border-radius: 3px;
+        }
+        
+        .transparency-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .transparency-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .blur-intensity {
+            margin-bottom: 15px;
+        }
+        
+        .blur-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+        
+        .blur-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .blur-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, rgba(102, 126, 234, 0.1), #667eea);
+            outline: none;
+            border-radius: 3px;
+        }
+        
+        .blur-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .blur-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .preset-btn {
+            padding: 6px;
+            font-size: 11px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 6px;
+            color: #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .preset-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .preset-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            transition: backdrop-filter 0.3s ease, background-color 0.3s ease;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .input-section {
+            margin-bottom: 40px;
+        }
+        
+        .input-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(248, 249, 250, 0.9);
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .result-section {
+            margin-top: 40px;
+        }
+        
+        .result-card {
+            background: rgba(248, 249, 250, 0.9);
+            border-radius: 10px;
+            padding: 25px;
+            display: none;
+            animation: fadeIn 0.5s;
+            backdrop-filter: blur(5px);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .sentiment-icon {
+            font-size: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .positive-icon { background: #d4edda; color: #155724; }
+        .negative-icon { background: #f8d7da; color: #721c24; }
+        .neutral-icon { background: #fff3cd; color: #856404; }
+        
+        .result-header h3 {
+            font-size: 1.4rem;
+            color: #333;
+        }
+        
+        .confidence {
+            margin-left: auto;
+            font-size: 0.9rem;
+            color: #666;
+            background: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .result-details {
+            margin-top: 20px;
+        }
+        
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .result-row:last-child {
+            border-bottom: none;
+        }
+        
+        .result-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .result-value {
+            color: #333;
+            max-width: 60%;
+            text-align: right;
+        }
+        
+        .probability-chart {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            backdrop-filter: blur(3px);
+        }
+        
+        .probability-bar {
+            margin: 15px 0;
+        }
+        
+        .probability-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .probability-bar-bg {
+            height: 10px;
+            background: rgba(238, 238, 238, 0.7);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .probability-bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 1s ease;
+        }
+        
+        .positive-fill { background: linear-gradient(90deg, #56ab2f, #a8e063); }
+        .negative-fill { background: linear-gradient(90deg, #ff416c, #ff4b2b); }
+        .neutral-fill { background: linear-gradient(90deg, #ffb347, #ffcc33); }
+        
+        .examples {
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e0e0e0;
+            backdrop-filter: blur(3px);
+        }
+        
+        .examples h4 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .example-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+        
+        .example-btn {
+            padding: 12px;
+            background: rgba(248, 249, 250, 0.9);
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        
+        .example-btn:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .loading i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: rgba(248, 215, 218, 0.9);
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+            backdrop-filter: blur(3px);
+        }
+        
+        .system-status {
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(231, 245, 255, 0.9);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #0066cc;
+            backdrop-filter: blur(3px);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+            backdrop-filter: blur(3px);
+        }
+        
+        /* 视频控制按钮 */
+        .video-control {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+        
+        .video-control:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.1);
+        }
+        
+        .video-control i {
+            font-size: 20px;
+            color: #333;
+        }
+        
+        /* 针对移动设备的优化 */
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                backdrop-filter: blur(5px);
+            }
+            
+            .header, .content {
+                padding: 25px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .video-background {
+                display: block;
+            }
+            
+            .video-background video {
+                width: 100%;
+                height: 100%;
+            }
+            
+            .video-control {
+                bottom: 70px;
+                right: 10px;
+                width: 40px;
+                height: 40px;
+            }
+            
+            .video-control i {
+                font-size: 16px;
+            }
+            
+            .glass-control-panel {
+                top: 10px;
+                right: 10px;
+                width: 170px;
+                padding: 12px;
+            }
+            
+            .glass-panel-toggle {
+                top: 10px;
+                right: 10px;
+                width: 35px;
+                height: 35px;
+            }
+            
+            .glass-panel-toggle i {
+                font-size: 14px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .glass-control-panel {
+                width: 150px;
+                padding: 10px;
+            }
+            
+            .preset-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 视频背景 -->
+    <div class="video-background">
+        <video autoplay muted loop playsinline id="bgVideo">
+            <source src="{{ url_for('static', filename='AA.mp4') }}" type="video/mp4">
+            您的浏览器不支持视频标签。
+        </video>
+    </div>
+    
+    <!-- 遮罩层 -->
+    <div class="video-overlay"></div>
+    
+    <!-- 毛玻璃面板切换按钮 -->
+    <div class="glass-panel-toggle" id="glassPanelToggle">
+        <i class="fas fa-chevron-left" id="glassToggleIcon"></i>
+    </div>
+    
+    <!-- 毛玻璃效果控制面板 -->
+    <div class="glass-control-panel" id="glassControlPanel">
+        <div class="glass-control-header">
+            <h4><i class="fas fa-layer-group"></i> 毛玻璃效果</h4>
+            <label class="toggle-switch">
+                <input type="checkbox" id="glassEffectToggle" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="glass-control-content active" id="glassControls">
+            <div class="transparency-control">
+                <div class="transparency-label">
+                    <span>透明度</span>
+                    <span class="transparency-value" id="transparencyValue">10%</span>
+                </div>
+                <input type="range" min="10" max="100" value="10" class="transparency-slider" id="transparencySlider">
+            </div>
+            <div class="blur-intensity">
+                <div class="blur-label">
+                    <span>模糊强度</span>
+                    <span class="blur-value" id="blurValue">0px</span>
+                </div>
+                <input type="range" min="0" max="20" value="0" class="blur-slider" id="blurSlider">
+            </div>
+            <div class="preset-buttons">
+                <button class="preset-btn active" data-transparency="10" data-blur="0">默认</button>
+                <button class="preset-btn" data-transparency="90" data-blur="5">轻度</button>
+                <button class="preset-btn" data-transparency="70" data-blur="15">强烈</button>
+                <button class="preset-btn" data-transparency="50" data-blur="2">极致</button>
+                <button class="preset-btn" data-transparency="95" data-blur="0">无模糊</button>
+                <button class="preset-btn" data-transparency="100" data-blur="0">禁用</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 视频控制按钮 -->
+    <div class="video-control" id="videoControl" onclick="toggleVideo()">
+        <i class="fas fa-pause" id="videoControlIcon"></i>
+    </div>
+    
+    <div class="container" id="mainContainer">
+        <div class="header">
+            <h1><i class="fas fa-film"></i> 电影评论情感分析系统</h1>
+            <p>智能分析电影相关评论的情感倾向，支持正面、负面、中性情感识别</p>
+        </div>
+        
+        <div class="content">
+            <div class="input-section">
+                <label for="textInput"><i class="fas fa-comment-dots"></i> 请输入电影相关评论：</label>
+                <textarea id="textInput" 
+                          placeholder="例如：打戏很真，看的很过瘾...&#10;或：电影票价过高...&#10;或：是个喜剧电影..."></textarea>
+                
+                <div class="error-message" id="errorMessage"></div>
+                
+                <div class="button-group">
+                    <button class="btn-primary" onclick="predict()">
+                        <i class="fas fa-brain"></i> 分析情感
+                    </button>
+                    <button class="btn-secondary" onclick="clearText()">
+                        <i class="fas fa-eraser"></i> 清空文本
+                    </button>
+                    <button class="btn-success" onclick="randomExample()">
+                        <i class="fas fa-random"></i> 随机示例
+                    </button>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading" style="display: none;">
+                <i class="fas fa-spinner"></i>
+                <p>正在分析中，请稍候...</p>
+            </div>
+            
+            <div class="result-section">
+                <div class="result-card" id="resultCard">
+                    <div class="result-header" id="resultHeader">
+                        <div class="sentiment-icon" id="sentimentIcon">
+                            <i class="fas fa-smile"></i>
+                        </div>
+                        <div>
+                            <h3 id="sentimentText">正面情感</h3>
+                            <p id="resultReasoning">表达了积极情绪或满意</p>
+                        </div>
+                        <div class="confidence" id="confidenceText">置信度: 95%</div>
+                    </div>
+                    
+                    <div class="result-details">
+                        <div class="result-row">
+                            <span class="result-label"><i class="fas fa-clock"></i> 分析时间：</span>
+                            <span class="result-value" id="timestampText">2025-01-01 12:00:00</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label"><i class="fas fa-font"></i> 输入文本：</span>
+                            <span class="result-value" id="inputText">示例文本</span>
+                        </div>
+                    </div>
+                    
+                    <div class="probability-chart">
+                        <h4><i class="fas fa-chart-bar"></i> 情感概率分布</h4>
+                        <div class="probability-bar">
+                            <div class="probability-label">
+                                <span>正面</span>
+                                <span id="positiveProb">0%</span>
+                            </div>
+                            <div class="probability-bar-bg">
+                                <div class="probability-bar-fill positive-fill" id="positiveBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="probability-bar">
+                            <div class="probability-label">
+                                <span>负面</span>
+                                <span id="negativeProb">0%</span>
+                            </div>
+                            <div class="probability-bar-bg">
+                                <div class="probability-bar-fill negative-fill" id="negativeBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="probability-bar">
+                            <div class="probability-label">
+                                <span>中性</span>
+                                <span id="neutralProb">0%</span>
+                            </div>
+                            <div class="probability-bar-bg">
+                                <div class="probability-bar-fill neutral-fill" id="neutralBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="examples">
+                <h4><i class="fas fa-lightbulb"></i> 快速示例</h4>
+                <div class="example-buttons">
+                    <button class="example-btn" onclick="loadExample(this)">
+                        <i class="fas fa-thumbs-up"></i> 华丽的夸张，情节倒是紧凑，毫不拖沓
+                    </button>
+                    <button class="example-btn" onclick="loadExample(this)">
+                        <i class="fas fa-thumbs-down"></i> 留给三岁幼儿园小孩看吧。浪费时间跟生命
+                    </button>
+                    <button class="example-btn" onclick="loadExample(this)">
+                        <i class="fas fa-balance-scale"></i> 配乐使用无调性音乐
+                    </button>
+                    <button class="example-btn" onclick="loadExample(this)">
+                        <i class="fas fa-thumbs-down"></i> 实在欣赏不来无厘头搞笑，一点不搞笑
+                    </button>
+                    <button class="example-btn" onclick="loadExample(this)">
+                        <i class="fas fa-thumbs-up"></i> 别装逼了,这片绝对值5星
+                    </button>
+                    <button class="example-btn" onclick="loadExample(this)">
+                        <i class="fas fa-balance-scale"></i> 电影获得国际奖项
+                    </button>
+                </div>
+            </div>
+            
+            <div class="system-status">
+                <i class="fas fa-info-circle"></i> 系统状态：
+                <span id="systemStatus">正在检查...</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>电影评论情感分析系统 © 2025 | 基于BERT深度学习模型</p>
+            <p>支持正面、负面、中性情感识别 | 准确率 > 98%</p>
+        </div>
+    </div>
+
+    <script>
+        // 毛玻璃效果配置
+        let glassEffectEnabled = true;
+        let transparency = 10; // 默认透明度 10%
+        let blurIntensity = 0; // 默认模糊强度 0px
+        
+        // 页面加载时初始化
+        window.onload = function() {
+            checkSystemStatus();
+            handleVideoResponsive();
+            initVideoControls();
+            initGlassEffectControls();
+            initGlassPanelToggle(); // 初始化面板切换功能
+            applyGlassEffect(); // 应用默认效果
+        };
+        
+        // 初始化控制面板折叠/展开功能
+        function initGlassPanelToggle() {
+            const toggleBtn = document.getElementById('glassPanelToggle');
+            const panel = document.getElementById('glassControlPanel');
+            const icon = document.getElementById('glassToggleIcon');
+            
+            // 从本地存储读取面板状态
+            const isCollapsed = localStorage.getItem('glassPanelCollapsed') === 'true';
+            
+            // 设置初始状态
+            if (isCollapsed) {
+                panel.classList.add('collapsed');
+                toggleBtn.classList.add('collapsed');
+                icon.className = 'fas fa-chevron-right';
+            } else {
+                panel.classList.remove('collapsed');
+                toggleBtn.classList.remove('collapsed');
+                icon.className = 'fas fa-chevron-left';
+            }
+            
+            // 点击切换按钮事件
+            toggleBtn.addEventListener('click', function() {
+                panel.classList.toggle('collapsed');
+                toggleBtn.classList.toggle('collapsed');
+                
+                // 更新图标
+                if (panel.classList.contains('collapsed')) {
+                    icon.className = 'fas fa-chevron-right';
+                    localStorage.setItem('glassPanelCollapsed', 'true');
+                } else {
+                    icon.className = 'fas fa-chevron-left';
+                    localStorage.setItem('glassPanelCollapsed', 'false');
+                }
+            });
+        }
+        
+        // 初始化毛玻璃效果控制
+        function initGlassEffectControls() {
+            const toggle = document.getElementById('glassEffectToggle');
+            const transparencySlider = document.getElementById('transparencySlider');
+            const blurSlider = document.getElementById('blurSlider');
+            const presetButtons = document.querySelectorAll('.preset-btn');
+            
+            // 开关事件
+            toggle.addEventListener('change', function() {
+                glassEffectEnabled = this.checked;
+                const controls = document.getElementById('glassControls');
+                
+                if (glassEffectEnabled) {
+                    controls.classList.add('active');
+                    applyGlassEffect();
+                } else {
+                    controls.classList.remove('active');
+                    disableGlassEffect();
+                }
+            });
+            
+            // 透明度滑块事件
+            transparencySlider.addEventListener('input', function() {
+                transparency = this.value;
+                document.getElementById('transparencyValue').textContent = transparency + '%';
+                if (glassEffectEnabled) {
+                    applyGlassEffect();
+                }
+            });
+            
+            // 模糊强度滑块事件
+            blurSlider.addEventListener('input', function() {
+                blurIntensity = this.value;
+                document.getElementById('blurValue').textContent = blurIntensity + 'px';
+                if (glassEffectEnabled) {
+                    applyGlassEffect();
+                }
+            });
+            
+            // 预设按钮事件
+            presetButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // 移除所有按钮的active类
+                    presetButtons.forEach(btn => btn.classList.remove('active'));
+                    // 为当前按钮添加active类
+                    this.classList.add('active');
+                    
+                    // 获取预设值
+                    const trans = parseInt(this.dataset.transparency);
+                    const blur = parseInt(this.dataset.blur);
+                    
+                    // 更新滑块和值
+                    transparency = trans;
+                    blurIntensity = blur;
+                    
+                    transparencySlider.value = trans;
+                    blurSlider.value = blur;
+                    
+                    document.getElementById('transparencyValue').textContent = trans + '%';
+                    document.getElementById('blurValue').textContent = blur + 'px';
+                    
+                    // 如果预设是禁用效果，关闭开关
+                    if (trans === 100 && blur === 0) {
+                        toggle.checked = false;
+                        glassEffectEnabled = false;
+                        document.getElementById('glassControls').classList.remove('active');
+                        disableGlassEffect();
+                    } else {
+                        // 确保开关是打开的
+                        if (!toggle.checked) {
+                            toggle.checked = true;
+                            glassEffectEnabled = true;
+                            document.getElementById('glassControls').classList.add('active');
+                        }
+                        applyGlassEffect();
+                    }
+                });
+            });
+        }
+        
+        // 应用毛玻璃效果
+        function applyGlassEffect() {
+            if (!glassEffectEnabled) return;
+            
+            const container = document.getElementById('mainContainer');
+            const resultCard = document.getElementById('resultCard');
+            const confidence = document.querySelector('.confidence');
+            const probabilityChart = document.querySelector('.probability-chart');
+            const examples = document.querySelector('.examples');
+            const systemStatus = document.querySelector('.system-status');
+            const errorMessage = document.querySelector('.error-message');
+            const footer = document.querySelector('.footer');
+            
+            // 计算透明度值（0.1-1.0）
+            const opacity = transparency / 100;
+            
+            // 应用效果到主容器
+            container.style.backdropFilter = `blur(${blurIntensity}px)`;
+            container.style.backgroundColor = `rgba(255, 255, 255, ${opacity})`;
+            
+            // 应用到其他元素（可选，保持一致性）
+            if (resultCard.style.display !== 'none') {
+                resultCard.style.backdropFilter = `blur(${Math.min(blurIntensity, 5)}px)`;
+            }
+            
+            if (confidence) {
+                confidence.style.backdropFilter = `blur(${Math.min(blurIntensity, 5)}px)`;
+            }
+            
+            if (probabilityChart) {
+                probabilityChart.style.backdropFilter = `blur(${Math.min(blurIntensity, 3)}px)`;
+                probabilityChart.style.backgroundColor = `rgba(255, 255, 255, ${opacity * 0.7})`;
+            }
+            
+            if (examples) {
+                examples.style.backdropFilter = `blur(${Math.min(blurIntensity, 3)}px)`;
+                examples.style.backgroundColor = `rgba(255, 255, 255, ${opacity * 0.7})`;
+            }
+            
+            if (systemStatus) {
+                systemStatus.style.backdropFilter = `blur(${Math.min(blurIntensity, 3)}px)`;
+                systemStatus.style.backgroundColor = `rgba(231, 245, 255, ${opacity * 0.9})`;
+            }
+            
+            if (errorMessage) {
+                errorMessage.style.backdropFilter = `blur(${Math.min(blurIntensity, 3)}px)`;
+                errorMessage.style.backgroundColor = `rgba(248, 215, 218, ${opacity * 0.9})`;
+            }
+            
+            if (footer) {
+                footer.style.backdropFilter = `blur(${Math.min(blurIntensity, 3)}px)`;
+            }
+            
+            // 保存设置到本地存储
+            saveGlassEffectSettings();
+        }
+        
+        // 禁用毛玻璃效果
+        function disableGlassEffect() {
+            const container = document.getElementById('mainContainer');
+            container.style.backdropFilter = 'none';
+            container.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+            
+            // 重置其他元素
+            const elements = [
+                '.result-card',
+                '.confidence',
+                '.probability-chart',
+                '.examples',
+                '.system-status',
+                '.error-message',
+                '.footer'
+            ];
+            
+            elements.forEach(selector => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.style.backdropFilter = 'none';
+                    if (element.style.backgroundColor.includes('rgba')) {
+                        element.style.backgroundColor = element.style.backgroundColor.replace(/rgba\([^)]+\)/, 'rgba(255, 255, 255, 1)');
+                    }
+                }
+            });
+            
+            // 保存设置到本地存储
+            saveGlassEffectSettings();
+        }
+        
+        // 保存毛玻璃效果设置到本地存储
+        function saveGlassEffectSettings() {
+            const settings = {
+                enabled: glassEffectEnabled,
+                transparency: transparency,
+                blurIntensity: blurIntensity
+            };
+            localStorage.setItem('glassEffectSettings', JSON.stringify(settings));
+        }
+        
+        // 从本地存储加载毛玻璃效果设置
+        function loadGlassEffectSettings() {
+            const savedSettings = localStorage.getItem('glassEffectSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                glassEffectEnabled = settings.enabled;
+                transparency = settings.transparency;
+                blurIntensity = settings.blurIntensity;
+                
+                // 更新UI
+                document.getElementById('glassEffectToggle').checked = glassEffectEnabled;
+                document.getElementById('transparencySlider').value = transparency;
+                document.getElementById('blurSlider').value = blurIntensity;
+                document.getElementById('transparencyValue').textContent = transparency + '%';
+                document.getElementById('blurValue').textContent = blurIntensity + 'px';
+                
+                // 更新预设按钮状态
+                updatePresetButtons();
+                
+                // 应用或禁用效果
+                if (glassEffectEnabled) {
+                    document.getElementById('glassControls').classList.add('active');
+                    applyGlassEffect();
+                } else {
+                    document.getElementById('glassControls').classList.remove('active');
+                    disableGlassEffect();
+                }
+            }
+        }
+        
+        // 更新预设按钮状态
+        function updatePresetButtons() {
+            const buttons = document.querySelectorAll('.preset-btn');
+            buttons.forEach(button => {
+                const btnTrans = parseInt(button.dataset.transparency);
+                const btnBlur = parseInt(button.dataset.blur);
+                
+                if (btnTrans === transparency && btnBlur === blurIntensity) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+        
+        // 初始化视频控制
+        function initVideoControls() {
+            const video = document.getElementById('bgVideo');
+            const controlIcon = document.getElementById('videoControlIcon');
+            
+            video.addEventListener('loadeddata', function() {
+                console.log('背景视频加载成功');
+                if (video.paused) {
+                    controlIcon.className = 'fas fa-play';
+                }
+            });
+            
+            video.addEventListener('error', function() {
+                console.error('背景视频加载失败');
+                document.getElementById('videoControl').style.display = 'none';
+                document.querySelector('.video-background').innerHTML = 
+                    '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 100%; height: 100%;"></div>';
+            });
+            
+            video.play().catch(function(error) {
+                console.log("视频自动播放被阻止:", error);
+                controlIcon.className = 'fas fa-play';
+                showError('视频自动播放被阻止，请点击播放按钮');
+            });
+            
+            video.addEventListener('play', function() {
+                controlIcon.className = 'fas fa-pause';
+            });
+            
+            video.addEventListener('pause', function() {
+                controlIcon.className = 'fas fa-play';
+            });
+        }
+        
+        // 切换视频播放/暂停
+        function toggleVideo() {
+            const video = document.getElementById('bgVideo');
+            if (video.paused) {
+                video.play().catch(function(error) {
+                    console.log("播放失败:", error);
+                    showError('视频播放失败');
+                });
+            } else {
+                video.pause();
+            }
+        }
+        
+        // 视频响应式控制
+        function handleVideoResponsive() {
+            const video = document.getElementById('bgVideo');
+            
+            if (window.innerWidth <= 768) {
+                video.style.display = 'block';
+            }
+            
+            window.addEventListener('resize', function() {
+                if (window.innerWidth <= 768) {
+                    video.style.display = 'block';
+                } else {
+                    video.style.display = 'block';
+                }
+            });
+        }
+        
+        // 检查系统状态
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('systemStatus');
+                if (data.model_loaded) {
+                    statusElement.innerHTML = '<span style="color: #28a745;">✓ 系统正常，模型已加载</span>';
+                } else {
+                    statusElement.innerHTML = '<span style="color: #dc3545;">✗ 模型未加载，请先训练模型</span>';
+                }
+            } catch (error) {
+                document.getElementById('systemStatus').innerHTML = 
+                    '<span style="color: #dc3545;">✗ 连接服务器失败</span>';
+            }
+        }
+        
+        // 显示错误消息
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            setTimeout(() => {
+                errorElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 清除文本
+        function clearText() {
+            document.getElementById('textInput').value = '';
+            document.getElementById('resultCard').style.display = 'none';
+        }
+        
+        // 加载示例
+        function loadExample(button) {
+            const text = button.textContent.replace(/.*\s/i, '');
+            document.getElementById('textInput').value = text;
+        }
+        
+        // 随机示例
+        function randomExample() {
+            const examples = [
+                "电影获得国际奖项",
+                "别装逼了,这片绝对值5星",
+                "实在欣赏不来无厘头搞笑，一点不搞笑",
+                "配乐使用无调性音乐",
+                "留给三岁幼儿园小孩看吧。浪费时间跟生命",
+                "华丽的夸张，情节倒是紧凑，毫不拖沓",
+            ];
+            
+            const randomIndex = Math.floor(Math.random() * examples.length);
+            document.getElementById('textInput').value = examples[randomIndex];
+        }
+        
+        // 预测情感
+        async function predict() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                showError('请输入要分析的评论');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultCard').style.display = 'none';
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.status === 'error') {
+                    showError(data.error || '分析失败');
+                    return;
+                }
+                
+                const result = data.data;
+                updateResultDisplay(result);
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                showError('网络错误，请检查服务器连接');
+                console.error('Error:', error);
+            }
+        }
+        
+        // 更新结果显示
+        function updateResultDisplay(result) {
+            const sentimentIcon = document.getElementById('sentimentIcon');
+            const sentimentText = document.getElementById('sentimentText');
+            
+            if (result.sentiment === 'positive') {
+                sentimentIcon.className = 'sentiment-icon positive-icon';
+                sentimentIcon.innerHTML = '<i class="fas fa-smile-beam"></i>';
+                sentimentText.textContent = '正面情感';
+                sentimentText.style.color = '#28a745';
+            } else if (result.sentiment === 'negative') {
+                sentimentIcon.className = 'sentiment-icon negative-icon';
+                sentimentIcon.innerHTML = '<i class="fas fa-frown"></i>';
+                sentimentText.textContent = '负面情感';
+                sentimentText.style.color = '#dc3545';
+            } else {
+                sentimentIcon.className = 'sentiment-icon neutral-icon';
+                sentimentIcon.innerHTML = '<i class="fas fa-meh"></i>';
+                sentimentText.textContent = '中性情感';
+                sentimentText.style.color = '#ffc107';
+            }
+            
+            document.getElementById('resultReasoning').textContent = result.reasoning;
+            document.getElementById('confidenceText').textContent = 
+                `置信度: ${(result.confidence * 100).toFixed(1)}%`;
+            document.getElementById('timestampText').textContent = result.timestamp;
+            document.getElementById('inputText').textContent = result.text;
+            
+            const positiveProb = (result.probabilities.正面 * 100).toFixed(1);
+            const negativeProb = (result.probabilities.负面 * 100).toFixed(1);
+            const neutralProb = (result.probabilities.中性 * 100).toFixed(1);
+            
+            document.getElementById('positiveProb').textContent = positiveProb + '%';
+            document.getElementById('negativeProb').textContent = negativeProb + '%';
+            document.getElementById('neutralProb').textContent = neutralProb + '%';
+            
+            setTimeout(() => {
+                document.getElementById('positiveBar').style.width = positiveProb + '%';
+                document.getElementById('negativeBar').style.width = negativeProb + '%';
+                document.getElementById('neutralBar').style.width = neutralProb + '%';
+            }, 100);
+            
+            document.getElementById('resultCard').style.display = 'block';
+            
+            // 应用毛玻璃效果到结果显示区域
+            if (glassEffectEnabled) {
+                document.getElementById('resultCard').style.backdropFilter = `blur(${Math.min(blurIntensity, 5)}px)`;
+            }
+        }
+        
+        // 添加键盘快捷键支持
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.key === 'Enter') {
+                event.preventDefault();
+                predict();
+            }
+            
+            if (event.key === 'Escape') {
+                clearText();
+            }
+            
+            if (event.key === ' ' && event.target.tagName !== 'TEXTAREA') {
+                event.preventDefault();
+                toggleVideo();
+            }
+            
+            // Ctrl+G 切换毛玻璃效果
+            if (event.ctrlKey && event.key === 'g') {
+                event.preventDefault();
+                document.getElementById('glassEffectToggle').click();
+            }
+            
+            // Ctrl+H 隐藏/显示毛玻璃控制面板
+            if (event.ctrlKey && event.key === 'h') {
+                event.preventDefault();
+                document.getElementById('glassPanelToggle').click();
+            }
+        });
+        
+        // 自动调整文本框高度
+        const textarea = document.getElementById('textInput');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+        
+        // 在页面加载后从本地存储加载设置
+        setTimeout(() => {
+            loadGlassEffectSettings();
+        }, 100);
+    </script>
+</body>
+</html>
