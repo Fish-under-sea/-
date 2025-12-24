@@ -32,6 +32,11 @@ conda activate movies
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r req.txt
 ~~~
 
+使用git拉取实际模型文件
+~~~
+git lfs pull
+~~~
+
 ### 代码运行
 
 进入项目文件夹
